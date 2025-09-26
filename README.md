@@ -60,8 +60,8 @@ The project implements 17 different Minecraft materials:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/minecraft-skyblock-raytracer.git
-cd minecraft-skyblock-raytracer
+git clone https://github.com/0liRem/Proyecto_Diorama
+cd Proyecto_Diorama
 ```
 
 2. Create textures directory:
