@@ -8,6 +8,7 @@ minifb = "0.24"
 image = "0.24"
 rand = "0.8"
 rayon = "1.8"
+winit = "0.30.12"
 
 [profile.release]
 lto = true

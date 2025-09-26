@@ -9,7 +9,8 @@ use rayon::prelude::*;
 use std::sync::Arc;
 
 const WIDTH: usize = 640;
-const HEIGHT: usize = 480;
+const HEIGHT: usize = 480; 
+
 #[derive(Copy, Clone)]
 struct Vec3 {
     x: f32,
@@ -182,7 +183,7 @@ impl FlyCam {
             world_up: Vec3::new(0.0, 1.0, 0.0),
             yaw,
             pitch,
-            speed: 3.0,
+            speed: 5.0,
             sensitivity: 0.1,
         };
         cam.update_vectors();
@@ -249,6 +250,7 @@ impl FlyCam {
     }
 }
 
+#[derive(Clone)]
 struct Texture {
     width: usize,
     height: usize,
@@ -288,6 +290,7 @@ impl Texture {
             }
         }
         
+        // Fallback texture
         let mut texture = Texture::new(2, 2);
         texture.data[0] = Vec3::new(0.8, 0.8, 0.8);
         texture.data[1] = Vec3::new(0.2, 0.2, 0.2);
@@ -304,12 +307,15 @@ impl Texture {
     }
 }
 
+#[derive(Clone)]
 enum MaterialType {
     Diffuse,
     Metal,
     Dielectric,
+    Emissive,
 }
 
+#[derive(Clone)]
 struct Material {
     material_type: MaterialType,
     albedo: Vec3,
@@ -353,13 +359,19 @@ impl Material {
         }
     }
 
-    fn with_texture(mut self, texture: Texture) -> Self {
-        self.albedo_texture = Some(texture);
-        self
+    fn new_emissive(color: Vec3, intensity: f32) -> Self {
+        Self {
+            material_type: MaterialType::Emissive,
+            albedo: color,
+            albedo_texture: None,
+            roughness: 0.0,
+            refractive_index: 1.0,
+            emission: color * intensity,
+        }
     }
 
-    fn with_emission(mut self, emission: Vec3) -> Self {
-        self.emission = emission;
+    fn with_texture(mut self, texture: Texture) -> Self {
+        self.albedo_texture = Some(texture);
         self
     }
 
@@ -372,34 +384,101 @@ impl Material {
     }
 }
 
+// Materiales de Minecraft
 impl Material {
-    fn cristal() -> Self {
-        Material::new_dielectric(1.5).with_texture(Texture::from_file("textures/cristal.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    fn grass_block() -> Self {
+        Material::new_diffuse(Vec3::new(0.4, 0.7, 0.2))
+            .with_texture(Texture::from_file("textures/grass_block.png").unwrap_or_else(|_| Texture::new(1, 1)))
     }
 
-    fn agua() -> Self {
-        Material::new_dielectric(1.33)
-            .with_texture(Texture::from_file("textures/agua.png").unwrap_or_else(|_| Texture::new(1, 1)))
-    }
-
-    fn metal(roughness: f32) -> Self {
-        Material::new_metal(Vec3::new(0.8, 0.8, 0.8), roughness).with_texture(Texture::from_file("textures/metal.png").unwrap_or_else(|_| Texture::new(1, 1)))
-    }
-
-    fn madera() -> Self {
-        Material::new_diffuse(Vec3::new(0.6, 0.4, 0.2))
-            .with_texture(Texture::from_file("textures/madera.jpg").unwrap_or_else(|_| Texture::new(1, 1)))
-    }
-
-    fn tierra() -> Self {
+    fn dirt() -> Self {
         Material::new_diffuse(Vec3::new(0.5, 0.4, 0.3))
-            .with_texture(Texture::from_file("textures/dirt.png").unwrap_or_else(|_| Texture::new(1, 1)))
+            .with_texture(Texture::from_file("textures/dirt.jpg").unwrap_or_else(|_| Texture::new(1, 1)))
     }
 
-    fn plantas() -> Self {
-        Material::new_diffuse(Vec3::new(0.2, 0.6, 0.3))
-            .with_texture(Texture::from_file("textures/plants.png").unwrap_or_else(|_| Texture::new(1, 1)))
-            .with_emission(Vec3::new(0.1, 0.2, 0.1))
+    fn stone() -> Self {
+        Material::new_diffuse(Vec3::new(0.6, 0.6, 0.6))
+            .with_texture(Texture::from_file("textures/stone.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn cobblestone() -> Self {
+        Material::new_diffuse(Vec3::new(0.5, 0.5, 0.5))
+            .with_texture(Texture::from_file("textures/cobblestone.jpg").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn oak_wood() -> Self {
+        Material::new_diffuse(Vec3::new(0.6, 0.5, 0.3))
+            .with_texture(Texture::from_file("textures/oak_log.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn oak_leaves() -> Self {
+        Material::new_diffuse(Vec3::new(0.2, 0.6, 0.2))
+            .with_texture(Texture::from_file("textures/oak_leaves.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn water() -> Self {
+        Material::new_dielectric(1.33)
+            .with_texture(Texture::from_file("textures/water.jpg").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn glass() -> Self {
+        Material::new_dielectric(1.5)
+            .with_texture(Texture::from_file("textures/glass.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn iron_block() -> Self {
+        Material::new_metal(Vec3::new(0.8, 0.8, 0.8), 0.1)
+            .with_texture(Texture::from_file("textures/iron_block.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn gold_block() -> Self {
+        Material::new_metal(Vec3::new(1.0, 0.8, 0.0), 0.05)
+            .with_texture(Texture::from_file("textures/gold_block.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn diamond_block() -> Self {
+        Material::new_dielectric(2.4)
+            .with_texture(Texture::from_file("textures/diamond_block.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn glowstone() -> Self {
+        Material::new_emissive(Vec3::new(1.0, 0.9, 0.6), 2.0)
+            .with_texture(Texture::from_file("textures/glowstone.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn bedrock() -> Self {
+        Material::new_diffuse(Vec3::new(0.2, 0.2, 0.2))
+            .with_texture(Texture::from_file("textures/bedrock.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn obsidian() -> Self {
+        Material::new_diffuse(Vec3::new(0.1, 0.05, 0.2))
+            .with_texture(Texture::from_file("textures/obsidian.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn lava() -> Self {
+        Material::new_emissive(Vec3::new(1.0, 0.3, 0.1), 3.0)
+            .with_texture(Texture::from_file("textures/lava.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn sand() -> Self {
+        Material::new_diffuse(Vec3::new(0.9, 0.8, 0.6))
+            .with_texture(Texture::from_file("textures/sand.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn coal_ore() -> Self {
+        Material::new_diffuse(Vec3::new(0.4, 0.4, 0.4))
+            .with_texture(Texture::from_file("textures/coal_ore.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn iron_ore() -> Self {
+        Material::new_diffuse(Vec3::new(0.7, 0.6, 0.5))
+            .with_texture(Texture::from_file("textures/iron_ore.png").unwrap_or_else(|_| Texture::new(1, 1)))
+    }
+
+    fn diamond_ore() -> Self {
+        Material::new_diffuse(Vec3::new(0.5, 0.7, 0.8))
+            .with_texture(Texture::from_file("textures/diamond_ore.png").unwrap_or_else(|_| Texture::new(1, 1)))
     }
 }
 
@@ -479,44 +558,6 @@ impl Sphere {
     }
 }
 
-struct Plane {
-    point: Vec3,
-    normal: Vec3,
-    material: Material,
-}
-
-impl Plane {
-    fn new(point: Vec3, normal: Vec3, material: Material) -> Self {
-        Self {
-            point,
-            normal: normal.normalize(),
-            material,
-        }
-    }
-
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
-        let denom = self.normal.dot(&ray.direction);
-        if denom.abs() > 1e-6 {
-            let t = self.point.subtract(&ray.origin).dot(&self.normal) / denom;
-            if t >= t_min && t <= t_max {
-                let point = ray.point_at_parameter(t);
-                let u = point.x.fract().abs();
-                let v = point.z.fract().abs();
-                
-                return Some(HitRecord {
-                    t,
-                    point,
-                    normal: self.normal,
-                    material: &self.material,
-                    u,
-                    v,
-                });
-            }
-        }
-        None
-    }
-}
-
 struct Cube {
     min: Vec3,
     max: Vec3,
@@ -532,6 +573,7 @@ impl Cube {
         let mut t_near = f32::NEG_INFINITY;
         let mut t_far = f32::INFINITY;
         let mut hit_normal = Vec3::new(0.0, 0.0, 0.0);
+        let mut hit_face = 0; // 0=X, 1=Y, 2=Z
 
         for i in 0..3 {
             let origin = match i {
@@ -576,6 +618,7 @@ impl Cube {
                             2 => Vec3::new(0.0, 0.0, -1.0),
                             _ => Vec3::new(0.0, 0.0, 0.0),
                         };
+                        hit_face = i;
                     }
                     if t1 < t_far {
                         t_far = t1;
@@ -589,6 +632,7 @@ impl Cube {
                             2 => Vec3::new(0.0, 0.0, 1.0),
                             _ => Vec3::new(0.0, 0.0, 0.0),
                         };
+                        hit_face = i;
                     }
                     if t2 < t_far {
                         t_far = t2;
@@ -603,8 +647,33 @@ impl Cube {
 
         if t_near > t_min && t_near < t_max {
             let point = ray.point_at_parameter(t_near);
-            let u = (point.x - self.min.x) / (self.max.x - self.min.x);
-            let v = (point.z - self.min.z) / (self.max.z - self.min.z);
+            
+            // Mapeo UV correcto para cada cara del cubo
+            let (u, v) = match hit_face {
+                0 => {
+                    // Cara X (izquierda/derecha)
+                    let u = (point.z - self.min.z) / (self.max.z - self.min.z);
+                    let v = 1.0 - (point.y - self.min.y) / (self.max.y - self.min.y);
+                    (u, v)
+                },
+                1 => {
+                    // Cara Y (arriba/abajo)
+                    let u = (point.x - self.min.x) / (self.max.x - self.min.x);
+                    let v = (point.z - self.min.z) / (self.max.z - self.min.z);
+                    (u, v)
+                },
+                2 => {
+                    // Cara Z (frente/atrás)
+                    let u = 1.0 - (point.x - self.min.x) / (self.max.x - self.min.x);
+                    let v = 1.0 - (point.y - self.min.y) / (self.max.y - self.min.y);
+                    (u, v)
+                },
+                _ => (0.0, 0.0),
+            };
+            
+            // Asegurar que las coordenadas UV estén en [0,1]
+            let u = u.fract().abs();
+            let v = v.fract().abs();
             
             return Some(HitRecord {
                 t: t_near,
@@ -681,12 +750,6 @@ impl Hittable for Sphere {
     }
 }
 
-impl Hittable for Plane {
-    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
-        self.hit(ray, t_min, t_max)
-    }
-}
-
 impl Hittable for Cube {
     fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
         self.hit(ray, t_min, t_max)
@@ -701,10 +764,15 @@ fn color(ray: &Ray, objects: &[Arc<dyn Hittable>], lights: &[Light], depth: i32)
     let mut closest_t = f32::INFINITY;
     let mut hit_record: Option<HitRecord> = None;
 
+    // Early exit optimization - stop at first reasonable hit for performance
     for object in objects {
         if let Some(record) = object.hit(ray, 0.001, closest_t) {
             closest_t = record.t;
             hit_record = Some(record);
+            // For performance, we can break early in some cases
+            if closest_t < 0.1 {
+                break;
+            }
         }
     }
 
@@ -712,30 +780,23 @@ fn color(ray: &Ray, objects: &[Arc<dyn Hittable>], lights: &[Light], depth: i32)
         let emitted = record.material.emission;
         
         match record.material.material_type {
+            MaterialType::Emissive => {
+                emitted
+            }
+            
             MaterialType::Diffuse => {
+                // Simplified lighting calculation
                 let mut result = Vec3::new(0.0, 0.0, 0.0);
                 
-                for light in lights {
+                // Only calculate lighting from first light for performance
+                if let Some(light) = lights.first() {
                     let light_dir = light.position.subtract(&record.point).normalize();
-                    let shadow_ray = Ray::new(record.point, light_dir);
-                    
-                    let mut in_shadow = false;
-                    for object in objects {
-                        if object.hit(&shadow_ray, 0.001, f32::INFINITY).is_some() {
-                            in_shadow = true;
-                            break;
-                        }
-                    }
-                    
-                    if !in_shadow {
-                        let diffuse_intensity = record.normal.dot(&light_dir).max(0.0) * light.intensity;
-                        let albedo = record.material.get_albedo(record.u, record.v);
-                        let light_contribution = albedo.multiply_vec(&light.color) * diffuse_intensity;
-                        result = result + light_contribution;
-                    }
+                    let diffuse_intensity = record.normal.dot(&light_dir).max(0.0) * light.intensity;
+                    let albedo = record.material.get_albedo(record.u, record.v);
+                    result = albedo.multiply_vec(&light.color) * diffuse_intensity;
                 }
                 
-                let ambient_intensity = 0.1;
+                let ambient_intensity = 0.3; // Increased ambient to compensate
                 let albedo = record.material.get_albedo(record.u, record.v);
                 let ambient = albedo * ambient_intensity;
                 
@@ -743,49 +804,44 @@ fn color(ray: &Ray, objects: &[Arc<dyn Hittable>], lights: &[Light], depth: i32)
             }
             
             MaterialType::Metal => {
-            let reflected = reflect(&ray.direction.normalize(), &record.normal);
-            let scattered = Ray::new(record.point, reflected + random_in_unit_sphere() * record.material.roughness);
-            let albedo = record.material.get_albedo(record.u, record.v); // Usar coordenadas UV
-            color(&scattered, objects, lights, depth - 1).multiply_vec(&albedo)
-        }
-
+                // Simplified metal reflection
+                let reflected = reflect(&ray.direction.normalize(), &record.normal);
+                let scattered = Ray::new(record.point, reflected);
+                let albedo = record.material.get_albedo(record.u, record.v);
+                emitted + color(&scattered, objects, lights, depth - 1).multiply_vec(&albedo) * 0.8
+            }
             
             MaterialType::Dielectric => {
-                    let outward_normal: Vec3;
-                    let ni_over_nt: f32;
-                    let cosine: f32;
-                    
-                    if ray.direction.dot(&record.normal) > 0.0 {
-                        outward_normal = record.normal * -1.0;
-                        ni_over_nt = record.material.refractive_index;
-                        cosine = record.material.refractive_index * ray.direction.dot(&record.normal) / ray.direction.length();
-                    } else {
-                        outward_normal = record.normal;
-                        ni_over_nt = 1.0 / record.material.refractive_index;
-                        cosine = -ray.direction.dot(&record.normal) / ray.direction.length();
-                    }
-                    
-                    let reflect_prob = if refract(&ray.direction, &outward_normal, ni_over_nt).is_some() {
-                        schlick(cosine, record.material.refractive_index)
-                    } else {
-                        1.0
-                    };
-                    
-                    if rand::random::<f32>() < reflect_prob {
-                        let reflected = reflect(&ray.direction, &record.normal);
-                        let scattered = Ray::new(record.point, reflected);
-                        color(&scattered, objects, lights, depth - 1)
-                    } else {
-                        let refracted = refract(&ray.direction, &outward_normal, ni_over_nt).unwrap();
-                        let scattered = Ray::new(record.point, refracted);
-                        color(&scattered, objects, lights, depth - 1)
-                    }
+                // Simplified glass/water - mostly just refraction
+                let outward_normal: Vec3;
+                let ni_over_nt: f32;
+                
+                if ray.direction.dot(&record.normal) > 0.0 {
+                    outward_normal = record.normal * -1.0;
+                    ni_over_nt = record.material.refractive_index;
+                } else {
+                    outward_normal = record.normal;
+                    ni_over_nt = 1.0 / record.material.refractive_index;
                 }
+                
+                // Simplified - always refract if possible, otherwise reflect
+                if let Some(refracted) = refract(&ray.direction, &outward_normal, ni_over_nt) {
+                    let scattered = Ray::new(record.point, refracted);
+                    color(&scattered, objects, lights, depth - 1) * 0.95
+                } else {
+                    let reflected = reflect(&ray.direction, &record.normal);
+                    let scattered = Ray::new(record.point, reflected);
+                    color(&scattered, objects, lights, depth - 1) * 0.95
+                }
+            }
         }
     } else {
+        // Simplified sky
         let unit_direction = ray.direction.normalize();
         let t = 0.5 * (unit_direction.y + 1.0);
-        Vec3::new(1.0, 1.0, 1.0).multiply(1.0 - t) + Vec3::new(0.5, 0.7, 1.0).multiply(t)
+        let sky_top = Vec3::new(0.5, 0.7, 1.0);
+        let sky_bottom = Vec3::new(0.2, 0.4, 0.8);
+        sky_bottom * (1.0 - t) + sky_top * t
     }
 }
 
@@ -819,11 +875,178 @@ impl FPSCounter {
     }
 }
 
+fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
+    let mut objects: Vec<Arc<dyn Hittable>> = Vec::new();
+    
+    // === BASE DE LA ISLA (DIRT Y BEDROCK) ===
+    
+    // Capa de bedrock (base indestructible)
+    for x in -2..3 {
+        for z in -2..3 {
+            objects.push(Arc::new(Cube::new(
+                Vec3::new(x as f32, -3.0, z as f32),
+                Vec3::new((x + 1) as f32, -2.0, (z + 1) as f32),
+                Material::bedrock(),
+            )));
+        }
+    }
+    
+    // Capas de dirt
+    for y in -2..0 {
+        for x in -2..3 {
+            for z in -2..3 {
+                objects.push(Arc::new(Cube::new(
+                    Vec3::new(x as f32, y as f32, z as f32),
+                    Vec3::new((x + 1) as f32, (y + 1) as f32, (z + 1) as f32),
+                    Material::dirt(),
+                )));
+            }
+        }
+    }
+    
+    // Capa superior de grass blocks
+    for x in -2..3 {
+        for z in -2..3 {
+            objects.push(Arc::new(Cube::new(
+                Vec3::new(x as f32, 0.0, z as f32),
+                Vec3::new((x + 1) as f32, 1.0, (z + 1) as f32),
+                Material::grass_block(),
+            )));
+        }
+    }
+    
+    // === ÁRBOL DE ROBLE ===
+    
+    // Tronco del árbol
+    for y in 1..5 {
+        objects.push(Arc::new(Cube::new(
+            Vec3::new(0.0, y as f32, 0.0),
+            Vec3::new(1.0, (y + 1) as f32, 1.0),
+            Material::oak_wood(),
+        )));
+    }
+    
+    // Hojas del árbol (corona)
+    for x in -1..3 {
+        for y in 4..7 {
+            for z in -1..3 {
+                // Skip center trunk area at lower levels
+                if y < 6 && x >= 0 && x < 2 && z >= 0 && z < 2 {
+                    continue;
+                }
+                objects.push(Arc::new(Cube::new(
+                    Vec3::new(x as f32, y as f32, z as f32),
+                    Vec3::new((x + 1) as f32, (y + 1) as f32, (z + 1) as f32),
+                    Material::oak_leaves(),
+                )));
+            }
+        }
+    }
+    
+    // === PEQUEÑA PISCINA DE AGUA ===
+    
+    // Excavar un hoyo para el agua
+    objects.push(Arc::new(Cube::new(
+        Vec3::new(-1.0, 0.0, -1.0),
+        Vec3::new(0.0, 0.8, 0.0),
+        Material::water(),
+    )));
+    
+    // === MINERALES Y BLOQUES ESPECIALES ===
+    
+    // Bloque de hierro
+    objects.push(Arc::new(Cube::new(
+        Vec3::new(2.0, 1.0, 2.0),
+        Vec3::new(3.0, 2.0, 3.0),
+        Material::iron_block(),
+    )));
+    
+    // Bloque de oro
+    objects.push(Arc::new(Cube::new(
+        Vec3::new(-2.0, 1.0, 2.0),
+        Vec3::new(-1.0, 2.0, 3.0),
+        Material::gold_block(),
+    )));
+    
+    // Bloque de diamante (pequeño, como gema preciosa)
+    objects.push(Arc::new(Sphere::new(
+        Vec3::new(1.5, 1.5, -1.5),
+        0.4,
+        Material::diamond_block(),
+    )));
+    
+    // === ILUMINACIÓN ===
+    
+    // Bloque de glowstone para iluminación
+    objects.push(Arc::new(Cube::new(
+        Vec3::new(-1.0, 2.0, 1.0),
+        Vec3::new(0.0, 3.0, 2.0),
+        Material::glowstone(),
+    )));
+    
+    // === DECORACIONES ADICIONALES ===
+    
+    // Algunos bloques de cobblestone como decoración
+    objects.push(Arc::new(Cube::new(
+        Vec3::new(1.0, 1.0, -2.0),
+        Vec3::new(2.0, 2.0, -1.0),
+        Material::cobblestone(),
+    )));
+    
+    // Bloque de obsidian (portal?)
+    objects.push(Arc::new(Cube::new(
+        Vec3::new(-2.0, 1.0, -1.0),
+        Vec3::new(-1.0, 3.0, 0.0),
+        Material::obsidian(),
+    )));
+    
+    // Cristal/vidrio como ventana
+    objects.push(Arc::new(Cube::new(
+        Vec3::new(2.0, 2.0, 0.0),
+        Vec3::new(3.0, 3.0, 1.0),
+        Material::glass(),
+    )));
+    
+    // === MINERALES EN LA TIERRA (ORES) ===
+    
+    // Carbón en la capa de dirt
+    objects.push(Arc::new(Cube::new(
+        Vec3::new(1.0, -1.0, 1.0),
+        Vec3::new(2.0, 0.0, 2.0),
+        Material::coal_ore(),
+    )));
+    
+    // Hierro en la capa de dirt
+    objects.push(Arc::new(Cube::new(
+        Vec3::new(-1.0, -2.0, 0.0),
+        Vec3::new(0.0, -1.0, 1.0),
+        Material::iron_ore(),
+    )));
+    
+    // Diamante raro en la capa profunda
+    objects.push(Arc::new(Sphere::new(
+        Vec3::new(0.5, -2.5, -1.5),
+        0.3,
+        Material::diamond_ore(),
+    )));
+    
+    // === LAVA (PELIGRO!) ===
+    
+    // Pequeño charco de lava como peligro
+    objects.push(Arc::new(Sphere::new(
+        Vec3::new(2.5, 0.2, -2.5),
+        0.3,
+        Material::lava(),
+    )));
+    
+    objects
+}
+
 fn main() {
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
     
     let mut window = Window::new(
-        "FlyCam Raytracing - WASD para mover, Mouse para mirar, ESC para salir",
+        "Minecraft Skyblock - Ray Tracer",
         WIDTH,
         HEIGHT,
         WindowOptions::default(),
@@ -832,83 +1055,43 @@ fn main() {
         panic!("{}", e);
     });
 
-    let cristal = Material::cristal();
-    let agua = Material::agua();
-    let metal_pulido = Material::metal(0.1);
-    let madera = Material::madera();
-    let tierra = Material::tierra();
-    let plantas = Material::plantas();
+    // Crear la isla skyblock
+    let objects = create_skyblock_island();
     
-
-    //MAPA
-        let cubo_metal = Arc::new(Cube::new(
-        Vec3::new(1.0, 0.0, -0.5),
-        Vec3::new(2.0, 1.0, 0.5),
-        madera,
-        ));
-    let suelo_madera = Arc::new(Plane::new(
-        Vec3::new(0.0, 0.0, 0.0),
-        Vec3::new(0.0, 1.0, 0.0),
-        metal_pulido,
-    ));
+    // === LUCES ESTILO MINECRAFT ===
     
-    let esfera_cristal = Arc::new(Cube::new(
-        Vec3::new(0.0, 0.0, -0.5),
-        Vec3::new(1.0, 1.0, 0.5),
-        cristal,
-    ));
+    // Luz solar principal
+    let sun_light = Light::new(
+        Vec3::new(10.0, 15.0, 5.0),
+        Vec3::new(1.0, 0.95, 0.8), // Luz cálida del sol
+        1.5,
+    );
     
-    let esfera_agua = Arc::new(Sphere::new(
-        Vec3::new(-2.0, 1.0, 0.0),
-        1.0,
-        agua,
-    ));
+    // Luz ambiental del cielo
+    let sky_light = Light::new(
+        Vec3::new(-5.0, 10.0, -5.0),
+        Vec3::new(0.6, 0.8, 1.0), // Luz azul del cielo
+        0.8,
+    );
     
-
-    
-    let esfera_tierra = Arc::new(Sphere::new(
-        Vec3::new(2.0, 0.5, -2.0),
-        0.5,
-        tierra,
-    ));
-    
-    let esfera_plantas = Arc::new(Sphere::new(
-        Vec3::new(-2.0, 0.5, -2.0),
-        0.5,
-        plantas,
-    ));
-    
-    let objects: Vec<Arc<dyn Hittable>> = vec![
-        suelo_madera, 
-        esfera_cristal, 
-        esfera_agua, 
-        cubo_metal,
-        esfera_tierra,
-        esfera_plantas,
-    ];
-    
-    let light1 = Light::new(
-        Vec3::new(5.0, 5.0, 2.0),
-        Vec3::new(1.0, 1.0, 1.0),
+    // Luz de la glowstone
+    let glow_light = Light::new(
+        Vec3::new(-0.5, 2.5, 1.5),
+        Vec3::new(1.0, 0.9, 0.6), // Luz cálida de glowstone
         1.0,
     );
     
-    let light2 = Light::new(
-        Vec3::new(-3.0, 3.0, 1.0),
-        Vec3::new(0.8, 0.8, 1.0),
-        0.7,
-    );
+    let lights = vec![sun_light, sky_light, glow_light];
     
-    let lights = vec![light1, light2];
-    
-    let mut flycam = FlyCam::new(Vec3::new(0.0, 2.0, 5.0), -90.0, 0.0);
+    // Configuración de cámara
+    let mut flycam = FlyCam::new(Vec3::new(-5.0, 5.0, 8.0), -30.0, -20.0);
     
     let aspect_ratio = WIDTH as f32 / HEIGHT as f32;
     let mut camera = Camera::new(
         flycam.position,
         flycam.get_lookat(),
         flycam.up,
-        45.0,
+        60.0,
         aspect_ratio,
     );
 
@@ -917,7 +1100,10 @@ fn main() {
     let mut first_mouse = true;
     let mut fps_counter = FPSCounter::new();
 
-    window.limit_update_rate(Some(Duration::from_millis(16)));
+    window.limit_update_rate(Some(Duration::from_millis(33))); // ~30 FPS cap
+
+    println!("Controles: WASD + QE + Mouse, ESC para salir");
+
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let current_time = Instant::now();
@@ -942,33 +1128,38 @@ fn main() {
         
         camera.update(flycam.position, flycam.get_lookat(), flycam.up);
         
-        // Renderizado paralelizado - ahora funciona
+        // Renderizado optimizado con menor calidad pero mayor velocidad
+        let current_fps = fps_counter.fps;
         buffer.par_chunks_mut(WIDTH).enumerate().for_each(|(y, row)| {
-            for x in (0..WIDTH).step_by(2) {
+            // Skip pixels for faster rendering (render every 2nd or 4th pixel)
+            let skip = if current_fps < 10.0 { 4 } else if current_fps < 20.0 { 2 } else { 1 };
+            
+            for x in (0..WIDTH).step_by(skip) {
                 let u = x as f32 / WIDTH as f32;
                 let v = (HEIGHT - y) as f32 / HEIGHT as f32;
                 
                 let ray = camera.get_ray(u, v);
-                let col = color(&ray, &objects, &lights, 3);
+                // Reducir rebotes cuando el FPS es bajo
+                let max_depth = if current_fps < 15.0 { 2 } else { 4 };
+                let col = color(&ray, &objects, &lights, max_depth);
                 
                 let r = (col.x.min(1.0).max(0.0) * 255.0) as u32;
                 let g = (col.y.min(1.0).max(0.0) * 255.0) as u32;
                 let b = (col.z.min(1.0).max(0.0) * 255.0) as u32;
                 let color_value = (r << 16) | (g << 8) | b;
-                
-                for dx in 0..2 {
-                    if x + dx < WIDTH {
-                        row[x + dx] = color_value;
-                    }
+
+                // Llenar múltiples píxeles con el mismo color
+                for dx in 0..skip.min(WIDTH - x) {
+                    row[x + dx] = color_value;
                 }
             }
         });
 
         let fps = fps_counter.update();
         if fps > 0.0 {
-            window.set_title(&format!("FlyCam Raytracing - FPS: {:.1}", fps));
+            window.set_title(&format!("Minecraft Skyblock  - FPS: {:.1}", fps));
         }
 
         window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
     }
-}   
+}
