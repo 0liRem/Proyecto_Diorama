@@ -6,7 +6,6 @@ A real-time ray tracer written in Rust that renders a Minecraft skyblock island 
 
 [![Minecraft Skyblock Ray Tracer Demo]()](link)
 
-*Replace `VIDEO_ID_AQUI` with your actual YouTube video ID*
 
 ## Features
 
