@@ -900,8 +900,7 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
             }
         }
     }
-    
-    // Capa superior de grass blocks
+
     for x in -2..3 {
         for z in -2..3 {
             objects.push(Arc::new(Cube::new(
@@ -927,7 +926,7 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
     for x in -1..3 {
         for y in 4..7 {
             for z in -1..3 {
-                // Skip center trunk area at lower levels
+        
                 if y < 6 && x >= 0 && x < 2 && z >= 0 && z < 2 {
                     continue;
                 }
@@ -942,7 +941,7 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
     
  
     
-    // Excavar un hoyo para el agua
+
     objects.push(Arc::new(Cube::new(
         Vec3::new(-1.0, 0.0, -1.0),
         Vec3::new(0.0, 0.8, 0.0),
@@ -972,7 +971,7 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
     
     // === ILUMINACIÓN ===
     
-    // Bloque de glowstone para iluminación
+
     objects.push(Arc::new(Cube::new(
         Vec3::new(-1.0, 2.0, 1.0),
         Vec3::new(0.0, 3.0, 2.0),
@@ -986,37 +985,33 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
         Material::cobblestone(),
     )));
     
-    // Bloque de obsidian 
+
     objects.push(Arc::new(Cube::new(
         Vec3::new(-2.0, 1.0, -1.0),
         Vec3::new(-1.0, 3.0, 0.0),
         Material::obsidian(),
     )));
     
-    // Cristal/vidrio como ventana
+
     objects.push(Arc::new(Cube::new(
         Vec3::new(2.0, 2.0, 0.0),
         Vec3::new(3.0, 3.0, 1.0),
         Material::glass(),
     )));
-    
-    // === MINERALES EN LA TIERRA (ORES) ===
-    
-    // Carbón en la capa de dirt
+
     objects.push(Arc::new(Cube::new(
         Vec3::new(1.0, -1.0, 1.0),
         Vec3::new(2.0, 0.0, 2.0),
         Material::coal_ore(),
     )));
     
-    // Hierro en la capa de dirt
+
     objects.push(Arc::new(Cube::new(
         Vec3::new(-1.0, -2.0, 0.0),
         Vec3::new(0.0, -1.0, 1.0),
         Material::iron_ore(),
     )));
     
-    // Diamante raro en la capa profunda
     objects.push(Arc::new(Sphere::new(
         Vec3::new(0.5, -2.5, -1.5),
         0.3,
@@ -1047,10 +1042,9 @@ fn main() {
         panic!("{}", e);
     });
 
-    // Crear la isla skyblock
+
     let objects = create_skyblock_island();
-    
-    // === LUCES ESTILO MINECRAFT ===
+
     
     // Luz solar principal
     let sun_light = Light::new(
@@ -1131,7 +1125,7 @@ fn main() {
                 let v = (HEIGHT - y) as f32 / HEIGHT as f32;
                 
                 let ray = camera.get_ray(u, v);
-                // Reducir rebotes cuando el FPS es bajo
+
                 let max_depth = if current_fps < 15.0 { 2 } else { 4 };
                 let col = color(&ray, &objects, &lights, max_depth);
                 
@@ -1140,7 +1134,7 @@ fn main() {
                 let b = (col.z.min(1.0).max(0.0) * 255.0) as u32;
                 let color_value = (r << 16) | (g << 8) | b;
 
-                // Llenar múltiples píxeles con el mismo color
+
                 for dx in 0..skip.min(WIDTH - x) {
                     row[x + dx] = color_value;
                 }
