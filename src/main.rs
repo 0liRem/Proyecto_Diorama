@@ -384,7 +384,7 @@ impl Material {
     }
 }
 
-// Materiales de Minecraft
+// TEXTURAS
 impl Material {
     fn grass_block() -> Self {
         Material::new_diffuse(Vec3::new(0.4, 0.7, 0.2))
@@ -648,7 +648,7 @@ impl Cube {
         if t_near > t_min && t_near < t_max {
             let point = ray.point_at_parameter(t_near);
             
-            // Mapeo UV correcto para cada cara del cubo
+            // Mapeo UV 
             let (u, v) = match hit_face {
                 0 => {
                     // Cara X (izquierda/derecha)
@@ -671,7 +671,6 @@ impl Cube {
                 _ => (0.0, 0.0),
             };
             
-            // Asegurar que las coordenadas UV estén en [0,1]
             let u = u.fract().abs();
             let v = v.fract().abs();
             
@@ -764,12 +763,11 @@ fn color(ray: &Ray, objects: &[Arc<dyn Hittable>], lights: &[Light], depth: i32)
     let mut closest_t = f32::INFINITY;
     let mut hit_record: Option<HitRecord> = None;
 
-    // Early exit optimization - stop at first reasonable hit for performance
     for object in objects {
         if let Some(record) = object.hit(ray, 0.001, closest_t) {
             closest_t = record.t;
             hit_record = Some(record);
-            // For performance, we can break early in some cases
+            
             if closest_t < 0.1 {
                 break;
             }
@@ -785,10 +783,9 @@ fn color(ray: &Ray, objects: &[Arc<dyn Hittable>], lights: &[Light], depth: i32)
             }
             
             MaterialType::Diffuse => {
-                // Simplified lighting calculation
+                
                 let mut result = Vec3::new(0.0, 0.0, 0.0);
                 
-                // Only calculate lighting from first light for performance
                 if let Some(light) = lights.first() {
                     let light_dir = light.position.subtract(&record.point).normalize();
                     let diffuse_intensity = record.normal.dot(&light_dir).max(0.0) * light.intensity;
@@ -796,7 +793,7 @@ fn color(ray: &Ray, objects: &[Arc<dyn Hittable>], lights: &[Light], depth: i32)
                     result = albedo.multiply_vec(&light.color) * diffuse_intensity;
                 }
                 
-                let ambient_intensity = 0.3; // Increased ambient to compensate
+                let ambient_intensity = 0.3; 
                 let albedo = record.material.get_albedo(record.u, record.v);
                 let ambient = albedo * ambient_intensity;
                 
@@ -804,7 +801,7 @@ fn color(ray: &Ray, objects: &[Arc<dyn Hittable>], lights: &[Light], depth: i32)
             }
             
             MaterialType::Metal => {
-                // Simplified metal reflection
+                
                 let reflected = reflect(&ray.direction.normalize(), &record.normal);
                 let scattered = Ray::new(record.point, reflected);
                 let albedo = record.material.get_albedo(record.u, record.v);
@@ -812,7 +809,7 @@ fn color(ray: &Ray, objects: &[Arc<dyn Hittable>], lights: &[Light], depth: i32)
             }
             
             MaterialType::Dielectric => {
-                // Simplified glass/water - mostly just refraction
+              
                 let outward_normal: Vec3;
                 let ni_over_nt: f32;
                 
@@ -824,7 +821,7 @@ fn color(ray: &Ray, objects: &[Arc<dyn Hittable>], lights: &[Light], depth: i32)
                     ni_over_nt = 1.0 / record.material.refractive_index;
                 }
                 
-                // Simplified - always refract if possible, otherwise reflect
+               
                 if let Some(refracted) = refract(&ray.direction, &outward_normal, ni_over_nt) {
                     let scattered = Ray::new(record.point, refracted);
                     color(&scattered, objects, lights, depth - 1) * 0.95
@@ -836,7 +833,7 @@ fn color(ray: &Ray, objects: &[Arc<dyn Hittable>], lights: &[Light], depth: i32)
             }
         }
     } else {
-        // Simplified sky
+        
         let unit_direction = ray.direction.normalize();
         let t = 0.5 * (unit_direction.y + 1.0);
         let sky_top = Vec3::new(0.5, 0.7, 1.0);
@@ -878,9 +875,9 @@ impl FPSCounter {
 fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
     let mut objects: Vec<Arc<dyn Hittable>> = Vec::new();
     
-    // === BASE DE LA ISLA (DIRT Y BEDROCK) ===
+  
     
-    // Capa de bedrock (base indestructible)
+    // Capa de bedrock 
     for x in -2..3 {
         for z in -2..3 {
             objects.push(Arc::new(Cube::new(
@@ -915,7 +912,7 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
         }
     }
     
-    // === ÁRBOL DE ROBLE ===
+ 
     
     // Tronco del árbol
     for y in 1..5 {
@@ -926,7 +923,7 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
         )));
     }
     
-    // Hojas del árbol (corona)
+    // Hojas del árbol 
     for x in -1..3 {
         for y in 4..7 {
             for z in -1..3 {
@@ -943,7 +940,7 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
         }
     }
     
-    // === PEQUEÑA PISCINA DE AGUA ===
+ 
     
     // Excavar un hoyo para el agua
     objects.push(Arc::new(Cube::new(
@@ -952,7 +949,6 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
         Material::water(),
     )));
     
-    // === MINERALES Y BLOQUES ESPECIALES ===
     
     // Bloque de hierro
     objects.push(Arc::new(Cube::new(
@@ -967,8 +963,7 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
         Vec3::new(-1.0, 2.0, 3.0),
         Material::gold_block(),
     )));
-    
-    // Bloque de diamante (pequeño, como gema preciosa)
+
     objects.push(Arc::new(Sphere::new(
         Vec3::new(1.5, 1.5, -1.5),
         0.4,
@@ -984,16 +979,14 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
         Material::glowstone(),
     )));
     
-    // === DECORACIONES ADICIONALES ===
-    
-    // Algunos bloques de cobblestone como decoración
+
     objects.push(Arc::new(Cube::new(
         Vec3::new(1.0, 1.0, -2.0),
         Vec3::new(2.0, 2.0, -1.0),
         Material::cobblestone(),
     )));
     
-    // Bloque de obsidian (portal?)
+    // Bloque de obsidian 
     objects.push(Arc::new(Cube::new(
         Vec3::new(-2.0, 1.0, -1.0),
         Vec3::new(-1.0, 3.0, 0.0),
@@ -1030,9 +1023,8 @@ fn create_skyblock_island() -> Vec<Arc<dyn Hittable>> {
         Material::diamond_ore(),
     )));
     
-    // === LAVA (PELIGRO!) ===
-    
-    // Pequeño charco de lava como peligro
+
+
     objects.push(Arc::new(Sphere::new(
         Vec3::new(2.5, 0.2, -2.5),
         0.3,
@@ -1100,7 +1092,7 @@ fn main() {
     let mut first_mouse = true;
     let mut fps_counter = FPSCounter::new();
 
-    window.limit_update_rate(Some(Duration::from_millis(33))); // ~30 FPS cap
+    window.limit_update_rate(Some(Duration::from_millis(33))); 
 
     println!("Controles: WASD + QE + Mouse, ESC para salir");
 
@@ -1128,10 +1120,10 @@ fn main() {
         
         camera.update(flycam.position, flycam.get_lookat(), flycam.up);
         
-        // Renderizado optimizado con menor calidad pero mayor velocidad
+     
         let current_fps = fps_counter.fps;
         buffer.par_chunks_mut(WIDTH).enumerate().for_each(|(y, row)| {
-            // Skip pixels for faster rendering (render every 2nd or 4th pixel)
+        
             let skip = if current_fps < 10.0 { 4 } else if current_fps < 20.0 { 2 } else { 1 };
             
             for x in (0..WIDTH).step_by(skip) {
